@@ -1,8 +1,8 @@
 
 # Project Working Progress: Vision App
 
-**Current Milestone:** Milestone 3: Multithreading & Async Operations
-**Current Todo:** 3.1.1 TrainWorker
+**Current Milestone:** Milestone 4: The GUI Shell & Dataset UI
+**Current Todo:** 4.1.1 NavigationController
 **Status:** 🟡 In Progress
 
 ---
@@ -29,14 +29,20 @@
 - [x] Implemented `OptimizationEngine` (AdamW, OneCycleLR, loss factory)
 - [x] Implemented `ValidationEngine` (Top-1 accuracy, confusion matrix)
 - [x] Created `tests/test_model.py` — all 8 tests pass (Milestone 2 ✅)
+- [x] Implemented `TrainWorker` with `SignalDispatcher` and `LifecycleManager` submodules
+- [x] Implemented `StreamWorker` with FPS limiting and QImage emit
+- [x] Created `config.yaml` schema (paths, defaults, hardware)
+- [x] Implemented `ConfigLoader` in `utils.py` (load/save/get)
+- [x] Created `tests/test_workers.py` — all 5 tests pass (Milestone 3 ✅)
 
 ---
 
 ## 🚀 Next Immediate Tasks
-- [ ] Implement `TrainWorker` with `SignalDispatcher` and `LifecycleManager` submodules
-- [ ] Implement `StreamWorker` with FPS limiting and QImage emit
-- [ ] Define `config.yaml` schema and `ConfigLoader` utility
-- [ ] Create `tests/test_workers.py` to verify signal, thread-safety, and abort logic
+- [ ] Implement `MainWindow` with `NavigationController`, `StatusBarManager`, `ThemeEngine`
+- [ ] Implement `DatasetManagerWidget` and `PruningDialog`
+- [ ] Create `main.py` QApplication bootstrap with High-DPI and storage dir creation
+- [ ] Create `style.qss` dark mode stylesheet
+- [ ] Verify tab navigation, live QTreeWidget update, and path resolution
 
 ---
 
@@ -67,13 +73,13 @@
 - [x] **2.3 Verification** — shape test, freeze test, checkpoint integrity
 
 ### Milestone 3: Multithreading & Async Operations
-- [ ] **3.1 Workers**
-    - [ ] `TrainWorker` (SignalDispatcher, LifecycleManager, run() loop)
-    - [ ] `StreamWorker` (OpenCV capture, FPS limiting, QImage emit)
-- [ ] **3.2 Configuration**
-    - [ ] `config.yaml` schema (paths, defaults, hardware)
-    - [ ] `ConfigLoader` utility in `utils.py`
-- [ ] **3.3 Verification** — signal test, thread-safety test, abort test
+- [x] **3.1 Workers**
+    - [x] `TrainWorker` (SignalDispatcher, LifecycleManager, run() loop)
+    - [x] `StreamWorker` (OpenCV capture, FPS limiting, QImage emit)
+- [x] **3.2 Configuration**
+    - [x] `config.yaml` schema (paths, defaults, hardware)
+    - [x] `ConfigLoader` utility in `utils.py`
+- [x] **3.3 Verification** — signal test, thread-safety test, abort test
 
 ### Milestone 4: The GUI Shell & Dataset UI
 - [ ] **4.1 Main Window**

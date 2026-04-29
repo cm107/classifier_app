@@ -3,6 +3,7 @@ utils.py — Shared utilities for the core engine.
 
 Classes:
     StatsCalculator  — Per-channel mean/std computation over an ImageFolder split.
+    ConfigLoader     — Read/write config.yaml using PyYAML.
     ModelExporter    — TorchScript tracing and optional ONNX export (Milestone 6).
 """
 
@@ -100,3 +101,63 @@ class ModelExporter:
 
     def export_onnx(self, model, output_path: Path, example_input_size=(1, 3, 224, 224)):
         raise NotImplementedError("ModelExporter is implemented in Milestone 6.")
+
+
+# ---------------------------------------------------------------------------
+# ConfigLoader
+# ---------------------------------------------------------------------------
+class ConfigLoader:
+    """
+    Read and write config.yaml using PyYAML.
+
+    The config file is resolved relative to the project root (parent of the
+    directory containing utils.py → vision_app/core/../.. = project root).
+
+    Usage:
+        loader = ConfigLoader()               # uses default config.yaml location
+        cfg = loader.load()
+        cfg["defaults"]["batch_size"] = 64
+        loader.save(cfg)
+
+    Args:
+        config_path : Explicit path to config.yaml. If None, resolves to
+                      <project_root>/config.yaml automatically.
+    """
+
+    def __init__(self, config_path: Path = None):
+        if config_path is None:
+            # vision_app/core/utils.py → ../../ = project root
+            config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        self.config_path = Path(config_path)
+
+    def load(self) -> dict:
+        """Load and return the config as a plain dict."""
+        import yaml
+
+        if not self.config_path.exists():
+            raise FileNotFoundError(
+                f"config.yaml not found at {self.config_path}. "
+                "Ensure config.yaml exists in the project root."
+            )
+        with self.config_path.open("r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+
+    def save(self, config: dict):
+        """Persist a modified config dict back to config.yaml."""
+        import yaml
+
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.config_path.open("w", encoding="utf-8") as f:
+            yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+
+    def get(self, *keys, default=None):
+        """
+        Convenience accessor for nested keys.
+        e.g. loader.get("defaults", "batch_size", default=32)
+        """
+        cfg = self.load()
+        for key in keys:
+            if not isinstance(cfg, dict):
+                return default
+            cfg = cfg.get(key, default)
+        return cfg
