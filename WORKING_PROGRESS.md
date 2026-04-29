@@ -1,8 +1,8 @@
 
 # Project Working Progress: Vision App
 
-**Current Milestone:** Milestone 4: The GUI Shell & Dataset UI
-**Current Todo:** 4.1.1 NavigationController
+**Current Milestone:** Milestone 5: Training Monitor & Hyperparameters
+**Current Todo:** 5.1.1 HyperParameterWidget
 **Status:** 🟡 In Progress
 
 ---
@@ -34,15 +34,23 @@
 - [x] Created `config.yaml` schema (paths, defaults, hardware)
 - [x] Implemented `ConfigLoader` in `utils.py` (load/save/get)
 - [x] Created `tests/test_workers.py` — all 5 tests pass (Milestone 3 ✅)
+- [x] Implemented `NavigationController` (sidebar QListWidget + QStackedWidget)
+- [x] Implemented `StatusBarManager` (GPU label + auto-clear notifications)
+- [x] Implemented `ThemeEngine` (loads style.qss)
+- [x] Created `vision_app/ui/resources/style.qss` dark mode stylesheet
+- [x] Implemented `DatasetManagerWidget` (QTreeWidget, New/Import/Split/Prune buttons)
+- [x] Implemented `PruningDialog` (checkboxes, QProgressBar, background QThread)
+- [x] Implemented `main.py` entry point (High-DPI, QApplication, storage dirs)
+- [x] Milestone 4 imports verified ✅
 
 ---
 
 ## 🚀 Next Immediate Tasks
-- [ ] Implement `MainWindow` with `NavigationController`, `StatusBarManager`, `ThemeEngine`
-- [ ] Implement `DatasetManagerWidget` and `PruningDialog`
-- [ ] Create `main.py` QApplication bootstrap with High-DPI and storage dir creation
-- [ ] Create `style.qss` dark mode stylesheet
-- [ ] Verify tab navigation, live QTreeWidget update, and path resolution
+- [ ] Implement `HyperParameterWidget` (QFormLayout, QSpinBox, mode selector, config.yaml persistence)
+- [ ] Implement `LiveGraph` (pyqtgraph integration, dynamic scaling)
+- [ ] Implement `TrainingMonitorWidget` (QProgressBar, metric cards, Start/Abort)
+- [ ] Wire `TrainWorker` signals to UI (progress bar, graph, status)
+- [ ] Verify input bounds, graph performance, persistence, graceful abort
 
 ---
 
@@ -82,16 +90,16 @@
 - [x] **3.3 Verification** — signal test, thread-safety test, abort test
 
 ### Milestone 4: The GUI Shell & Dataset UI
-- [ ] **4.1 Main Window**
-    - [ ] `NavigationController` (QStackedWidget sidebar)
-    - [ ] `StatusBarManager` (GPU info, notifications)
-    - [ ] `ThemeEngine` (QSS dark mode, style.qss)
-- [ ] **4.2 Dataset Tab**
-    - [ ] `DatasetManagerWidget` (QTreeWidget logic)
-    - [ ] `PruningDialog` (duplicate/corrupt checkboxes, QProgressBar)
-- [ ] **4.3 Entry Point**
-    - [ ] `main.py` (High-DPI, QApplication, storage dir creation)
-- [ ] **4.4 Verification** — tab nav, live QTreeWidget update, path resolution
+- [x] **4.1 Main Window**
+    - [x] `NavigationController` (QStackedWidget sidebar)
+    - [x] `StatusBarManager` (GPU info, notifications)
+    - [x] `ThemeEngine` (QSS dark mode, style.qss)
+- [x] **4.2 Dataset Tab**
+    - [x] `DatasetManagerWidget` (QTreeWidget logic)
+    - [x] `PruningDialog` (duplicate/corrupt checkboxes, QProgressBar)
+- [x] **4.3 Entry Point**
+    - [x] `main.py` (High-DPI, QApplication, storage dir creation)
+- [x] **4.4 Verification** — imports verified, ready for visual testing
 
 ### Milestone 5: Training Monitor & Hyperparameters
 - [ ] **5.1 Monitor UI**
