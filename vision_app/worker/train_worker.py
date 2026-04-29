@@ -198,7 +198,7 @@ class TrainWorker(QObject):
             self.signals.status_changed.emit(f"Initialising ({phase} phase)…")
 
             # --- Build DataLoaders on the worker thread ---
-            train_loader, val_loader = self._build_loaders(cfg)
+            train_loader, val_loader, label_map = self._build_loaders(cfg)
 
             # --- Build model and trainer ---
             model = ScratchResNet(
@@ -273,7 +273,12 @@ class TrainWorker(QObject):
                 ckpt_path = ckpt_dir / f"checkpoint_epoch{epoch:04d}.pth"
                 trainer.state_manager.save_checkpoint(
                     ckpt_path, epoch=epoch,
-                    optimizer_state=optimizer.state_dict()
+                    optimizer_state=optimizer.state_dict(),
+                    extra_meta={
+                        "label_map": label_map,
+                        "val_accuracy": val_metrics.get("val_accuracy", 0.0),
+                        "phase": phase,
+                    },
                 )
 
             success = not self.lifecycle.should_abort
@@ -376,4 +381,6 @@ class TrainWorker(QObject):
             val_ds, batch_size=batch_size, shuffle=False,
             num_workers=num_workers, pin_memory=True,
         )
-        return train_loader, val_loader
+        # Build int→class_name label map from the dataset's class_to_idx
+        label_map = {v: k for k, v in train_ds.class_to_idx.items()}
+        return train_loader, val_loader, label_map

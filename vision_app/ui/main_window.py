@@ -231,9 +231,24 @@ class MainWindow(QMainWindow):
         train_layout.addWidget(self.monitor_widget, stretch=1)
         self.nav.add_page(train_page)
 
-        # Pages 2-3 — stubs until Milestones 6
-        for label in ("Models", "Inference"):
-            self.nav.add_page(self._stub_page(label))
+        # Pages 2-3 — Milestones 6
+        from vision_app.ui.widgets.model_list import ModelManagerWidget
+        from vision_app.ui.widgets.live_view import InferenceViewWidget
+
+        self.model_manager = ModelManagerWidget(self.storage_root, self)
+        self.inference_view = InferenceViewWidget(self.storage_root, self)
+
+        # When a model is selected for fine-tuning, load it into HyperParamWidget
+        self.model_manager.model_selected.connect(self.hyper_widget.set_model_path)
+        self.model_manager.model_selected.connect(
+            lambda _: self.nav.go_to(1)  # navigate to Train page
+        )
+        self.model_manager.model_selected.connect(
+            lambda p: self.status_bar_manager.show_message(f"Loaded for fine-tune: {p.name}")
+        )
+
+        self.nav.add_page(self.model_manager)
+        self.nav.add_page(self.inference_view)
 
     @staticmethod
     def _stub_page(label: str) -> QWidget:
@@ -250,5 +265,18 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def closeEvent(self, event: QCloseEvent):
-        """Graceful shutdown — abort any running workers (Milestone 6)."""
+        """Abort any running workers before the window is destroyed."""
+        # Stop training worker
+        if hasattr(self, "monitor_widget"):
+            worker = getattr(self.monitor_widget, "_worker", None)
+            thread = getattr(self.monitor_widget, "_thread", None)
+            if worker is not None:
+                worker.lifecycle.request_abort()
+            if thread is not None and thread.isRunning():
+                thread.wait(5_000)
+
+        # Stop inference stream
+        if hasattr(self, "inference_view"):
+            self.inference_view.stop_stream()
+
         event.accept()

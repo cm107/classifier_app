@@ -91,16 +91,82 @@ class StatsCalculator:
 
 
 # ---------------------------------------------------------------------------
-# ModelExporter — stub, implemented in Milestone 6
+# ModelExporter
 # ---------------------------------------------------------------------------
 class ModelExporter:
-    """TorchScript tracing and optional ONNX export."""
+    """
+    Export a trained ScratchResNet to portable inference formats.
 
-    def export_torchscript(self, model, output_path: Path, example_input_size=(1, 3, 224, 224)):
-        raise NotImplementedError("ModelExporter is implemented in Milestone 6.")
+    Methods:
+        export_torchscript — Trace and save as a .pt TorchScript file.
+        export_onnx        — Export to ONNX (requires 'onnx' package).
+    """
 
-    def export_onnx(self, model, output_path: Path, example_input_size=(1, 3, 224, 224)):
-        raise NotImplementedError("ModelExporter is implemented in Milestone 6.")
+    def export_torchscript(
+        self,
+        model: torch.nn.Module,
+        output_path: Path,
+        example_input_size: tuple = (1, 3, 224, 224),
+    ) -> Path:
+        """
+        Trace the model with torch.jit.trace and save as a .pt file.
+
+        Args:
+            model             : nn.Module in eval mode.
+            output_path       : Destination .pt file path.
+            example_input_size: Dummy input shape for tracing (B, C, H, W).
+
+        Returns:
+            Resolved path to the saved .pt file.
+        """
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        model.eval()
+        device = next(model.parameters()).device
+        dummy = torch.zeros(*example_input_size, device=device)
+
+        with torch.no_grad():
+            traced = torch.jit.trace(model, dummy)
+
+        traced.save(str(output_path))
+        return output_path
+
+    def export_onnx(
+        self,
+        model: torch.nn.Module,
+        output_path: Path,
+        example_input_size: tuple = (1, 3, 224, 224),
+        opset_version: int = 17,
+    ) -> Path:
+        """
+        Export the model to ONNX format.
+
+        Requires the 'onnx' package (pip install onnx).
+
+        Returns:
+            Resolved path to the saved .onnx file.
+        """
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        model.eval()
+        device = next(model.parameters()).device
+        dummy = torch.zeros(*example_input_size, device=device)
+
+        torch.onnx.export(
+            model,
+            dummy,
+            str(output_path),
+            opset_version=opset_version,
+            input_names=["input"],
+            output_names=["logits"],
+            dynamic_axes={
+                "input": {0: "batch_size"},
+                "logits": {0: "batch_size"},
+            },
+        )
+        return output_path
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ Classes:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -51,6 +53,7 @@ class HyperParameterWidget(QWidget):
         super().__init__(parent)
         self._storage_root = Path(storage_root)
         self._config_loader = ConfigLoader()
+        self._model_path: Optional[Path] = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -133,7 +136,20 @@ class HyperParameterWidget(QWidget):
         ssl_form.addRow("Temperature:", self._temp_spin)
         layout.addWidget(ssl_group)
 
-        # ── Buttons ──
+        # ── Resume / Transfer ──
+        resume_group = QGroupBox("Resume / Transfer")
+        resume_form = QFormLayout(resume_group)
+        self._ckpt_edit = QLineEdit()
+        self._ckpt_edit.setReadOnly(True)
+        self._ckpt_edit.setPlaceholderText("None (train from scratch)")
+        self._clear_ckpt_btn = QPushButton("Clear")
+        self._clear_ckpt_btn.setFixedWidth(60)
+        self._clear_ckpt_btn.clicked.connect(self._clear_model_path)
+        ckpt_row = QHBoxLayout()
+        ckpt_row.addWidget(self._ckpt_edit)
+        ckpt_row.addWidget(self._clear_ckpt_btn)
+        resume_form.addRow("Checkpoint:", ckpt_row)
+        layout.addWidget(resume_group)
         btn_row = QHBoxLayout()
         self._save_btn = QPushButton("Save to config.yaml")
         self._reset_btn = QPushButton("Reset Defaults")
@@ -165,6 +181,11 @@ class HyperParameterWidget(QWidget):
     # Public API
     # ------------------------------------------------------------------
 
+    def set_model_path(self, path: Path):
+        """Called from ModelManagerWidget via MainWindow when a model is loaded."""
+        self._model_path = Path(path)
+        self._ckpt_edit.setText(self._model_path.name)
+
     def get_train_config(self) -> dict:
         """Return a dict suitable for passing directly to TrainWorker."""
         phase_map = {0: "supervised", 1: "ssl", 2: "linear_probe"}
@@ -186,6 +207,7 @@ class HyperParameterWidget(QWidget):
             "phase": phase,
             "num_workers": 4,
             "storage_root": self._storage_root,
+            "model_path": self._model_path,
         }
 
     def refresh_datasets(self):
@@ -260,6 +282,10 @@ class HyperParameterWidget(QWidget):
         self._img_size_spin.setValue(224)
         self._label_smooth_spin.setValue(0.1)
         self._temp_spin.setValue(0.5)
+
+    def _clear_model_path(self):
+        self._model_path = None
+        self._ckpt_edit.clear()
 
     @staticmethod
     def _count_classes(dataset_path: Path) -> int:
