@@ -1,23 +1,18 @@
-# config.yaml — Global application settings
-# Edit values here or via the HyperParameterWidget in the GUI.
-
-paths:
-  dataset_root: "storage/datasets"
-  model_export_root: "storage/models"
-  log_dir: "storage/logs"
-
 defaults:
-  learning_rate: 0.001
-  max_lr: 0.01
-  weight_decay: 0.01
   batch_size: 32
   epochs: 50
   image_size: 224
+  label_smoothing: 0.1
+  learning_rate: 0.001
+  max_lr: 0.01
   projection_dim: 128
-  temperature: 0.5       # NT-Xent temperature for SSL
-  label_smoothing: 0.1   # for supervised CrossEntropyLoss
-  top_k: 3               # top-k predictions shown in the live overlay
-
+  temperature: 0.5
+  top_k: 3
+  weight_decay: 0.01
 hardware:
-  use_cuda: true
   num_workers: 4
+  use_cuda: true
+paths:
+  dataset_root: storage/datasets
+  log_dir: storage/logs
+  model_export_root: storage/models

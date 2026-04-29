@@ -194,13 +194,45 @@ class MainWindow(QMainWindow):
 
     def _build_pages(self):
         from vision_app.ui.widgets.dataset_tab import DatasetManagerWidget
+        from vision_app.ui.widgets.hyper_param import HyperParameterWidget
+        from vision_app.ui.widgets.monitor import TrainingMonitorWidget
 
         # Page 0 — Dataset
         self.dataset_page = DatasetManagerWidget(self.storage_root, self)
         self.nav.add_page(self.dataset_page)
 
-        # Pages 1-3 — stubs until Milestones 5-6
-        for label in ("Train", "Models", "Inference"):
+        # Page 1 — Train (split: hyperparams left, monitor right)
+        train_page = QWidget()
+        train_layout = QHBoxLayout(train_page)
+        train_layout.setContentsMargins(0, 0, 0, 0)
+        train_layout.setSpacing(0)
+
+        self.hyper_widget = HyperParameterWidget(self.storage_root, self)
+        self.hyper_widget.setFixedWidth(300)
+        self.hyper_widget.setContentsMargins(16, 16, 8, 16)
+
+        self.monitor_widget = TrainingMonitorWidget(self.storage_root, self)
+        self.monitor_widget.set_hyperparameter_widget(self.hyper_widget)
+
+        # Keep dataset combo in sync when datasets are created/modified
+        self.dataset_page.datasets_changed.connect(self.hyper_widget.refresh_datasets)
+
+        # Forward status messages to the status bar
+        self.monitor_widget.training_started.connect(
+            lambda: self.status_bar_manager.show_message("Training started…")
+        )
+        self.monitor_widget.training_finished.connect(
+            lambda ok: self.status_bar_manager.show_message(
+                "Training complete." if ok else "Training aborted."
+            )
+        )
+
+        train_layout.addWidget(self.hyper_widget)
+        train_layout.addWidget(self.monitor_widget, stretch=1)
+        self.nav.add_page(train_page)
+
+        # Pages 2-3 — stubs until Milestones 6
+        for label in ("Models", "Inference"):
             self.nav.add_page(self._stub_page(label))
 
     @staticmethod

@@ -1,8 +1,8 @@
 
 # Project Working Progress: Vision App
 
-**Current Milestone:** Milestone 5: Training Monitor & Hyperparameters
-**Current Todo:** 5.1.1 HyperParameterWidget
+**Current Milestone:** Milestone 6: Management & Live Inference
+**Current Todo:** 6.1.1 ModelManagerWidget
 **Status:** 🟡 In Progress
 
 ---
@@ -42,15 +42,21 @@
 - [x] Implemented `PruningDialog` (checkboxes, QProgressBar, background QThread)
 - [x] Implemented `main.py` entry point (High-DPI, QApplication, storage dirs)
 - [x] Milestone 4 imports verified ✅
+- [x] Implemented `HyperParameterWidget` (QFormLayout, QSpinBox/QDoubleSpinBox, mode selector, config.yaml auto-save)
+- [x] Implemented `LiveGraph` (pyqtgraph dual-axis: loss left, accuracy right)
+- [x] Implemented `TrainingMonitorWidget` (metric cards, epoch progress bar, Start/Abort wired to TrainWorker)
+- [x] Wired Train page into MainWindow (HyperParameter panel + monitor side-by-side)
+- [x] Milestone 5 imports verified ✅
 
 ---
 
 ## 🚀 Next Immediate Tasks
-- [ ] Implement `HyperParameterWidget` (QFormLayout, QSpinBox, mode selector, config.yaml persistence)
-- [ ] Implement `LiveGraph` (pyqtgraph integration, dynamic scaling)
-- [ ] Implement `TrainingMonitorWidget` (QProgressBar, metric cards, Start/Abort)
-- [ ] Wire `TrainWorker` signals to UI (progress bar, graph, status)
-- [ ] Verify input bounds, graph performance, persistence, graceful abort
+- [ ] Implement `ModelManagerWidget` and `ModelItemDelegate`
+- [ ] Implement `InferenceEngine` in `inference.py`
+- [ ] Implement `InferenceViewWidget` with `SourceController`, `OverlayPainter`, `RecordingManager`
+- [ ] Implement `CameraViewport`
+- [ ] Implement `ModelExporter` (TorchScript tracing, optional ONNX)
+- [ ] Wire `MainWindow` close event to abort all workers
 
 ---
 
@@ -102,13 +108,13 @@
 - [x] **4.4 Verification** — imports verified, ready for visual testing
 
 ### Milestone 5: Training Monitor & Hyperparameters
-- [ ] **5.1 Monitor UI**
-    - [ ] `HyperParameterWidget` (QFormLayout, QSpinBox, mode selector, config.yaml persistence)
-    - [ ] `LiveGraph` (pyqtgraph integration, dynamic scaling)
-    - [ ] `TrainingMonitorWidget` (QProgressBar, metric cards, Start/Abort buttons)
-- [ ] **5.2 Controller Wiring**
-    - [ ] Worker instantiation on Start, signal connections, cleanup on finish/abort
-- [ ] **5.3 Verification** — input bounds, graph performance, persistence, graceful abort
+- [x] **5.1 Monitor UI**
+    - [x] `HyperParameterWidget` (QFormLayout, QSpinBox, mode selector, config.yaml persistence)
+    - [x] `LiveGraph` (pyqtgraph integration, dynamic scaling, dual y-axis)
+    - [x] `TrainingMonitorWidget` (QProgressBar, metric cards, Start/Abort buttons)
+- [x] **5.2 Controller Wiring**
+    - [x] Worker instantiation on Start, signal connections, cleanup on finish/abort
+- [x] **5.3 Verification** — imports verified, ready for visual testing
 
 ### Milestone 6: Management & Live Inference
 - [ ] **6.1 Model Library**
