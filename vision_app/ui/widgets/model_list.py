@@ -257,15 +257,24 @@ class ModelManagerWidget(QWidget):
 
         self._table.setRowHeight(row, 30)
 
+    def _selected_paths(self) -> list[Path]:
+        rows = {
+            index.row()
+            for index in self._table.selectionModel().selectedRows()
+        }
+        paths: list[Path] = []
+        for row in sorted(rows):
+            item = self._table.item(row, self._C_NAME)
+            if item is None:
+                continue
+            raw = item.data(Qt.ItemDataRole.UserRole + 1)
+            if raw:
+                paths.append(Path(raw))
+        return paths
+
     def _selected_path(self) -> Optional[Path]:
-        row = self._table.currentRow()
-        if row < 0:
-            return None
-        item = self._table.item(row, self._C_NAME)
-        if item is None:
-            return None
-        raw = item.data(Qt.ItemDataRole.UserRole + 1)
-        return Path(raw) if raw else None
+        paths = self._selected_paths()
+        return paths[0] if paths else None
 
     # ------------------------------------------------------------------
     # Button handlers
@@ -315,26 +324,50 @@ class ModelManagerWidget(QWidget):
             self._status_label.setText(f"Export failed: {exc}")
 
     def _on_delete(self):
-        path = self._selected_path()
-        if path is None:
+        paths = self._selected_paths()
+        if not paths:
             self._status_label.setText("Select a model first.")
             return
 
+        names = ", ".join(path.name for path in paths)
+        prompt = (
+            f"Permanently delete {len(paths)} model(s)?\n\n"
+            f"{names}\n\nThis cannot be undone."
+        )
         reply = QMessageBox.question(
             self,
             "Delete Model",
-            f"Permanently delete '{path.name}'?\n\nThis cannot be undone.",
+            prompt,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        try:
-            path.unlink()
-            log.info("ModelManagerWidget", f"Model deleted: {path.name}")
-            self._status_label.setText(f"Deleted: {path.name}")
-            self.refresh()
-        except OSError as exc:
-            log.exception("ModelManagerWidget", f"Failed to delete model {path.name}: {exc}")
-            self._status_label.setText(f"Delete failed: {exc}")
+        failed: list[str] = []
+        deleted: list[str] = []
+        for path in paths:
+            try:
+                path.unlink()
+                deleted.append(path.name)
+            except OSError as exc:
+                failed.append(path.name)
+                log.exception(
+                    "ModelManagerWidget",
+                    f"Failed to delete model {path.name}: {exc}",
+                )
+
+        if deleted:
+            log.info(
+                "ModelManagerWidget",
+                f"Models deleted: {', '.join(deleted)}",
+            )
+            self._status_label.setText(
+                f"Deleted: {', '.join(deleted)}"
+            )
+        if failed:
+            self._status_label.setText(
+                f"Delete failed for: {', '.join(failed)}"
+            )
+
+        self.refresh()
