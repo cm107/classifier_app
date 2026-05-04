@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from vision_app.core.trainer import TrainingMetrics
 from vision_app.worker.train_worker import TrainWorker
+from vision_app.core.logger import log
 
 
 # ---------------------------------------------------------------------------
@@ -303,11 +304,13 @@ class TrainingMonitorWidget(QWidget):
         self._thread.finished.connect(self._thread.deleteLater)
 
         self._thread.start()
+        log.info("TrainingMonitorWidget", f"Training started: dataset={cfg.get('dataset_path', 'unknown')}, epochs={cfg['epochs']}, phase={cfg.get('phase', 'supervised')}")
         self.training_started.emit()
 
     def _on_abort(self):
         if self._worker:
             self._worker.lifecycle.request_abort()
+        log.info("TrainingMonitorWidget", "Training abort requested by user")
         self._status_label.setText("Aborting…")
         self._abort_btn.setEnabled(False)
 
@@ -315,6 +318,7 @@ class TrainingMonitorWidget(QWidget):
         self._start_btn.setEnabled(True)
         self._abort_btn.setEnabled(False)
         msg = "Training complete." if success else "Training aborted."
+        log.info("TrainingMonitorWidget", msg)
         self._status_label.setText(msg)
         self._worker = None
         self.training_finished.emit(success)

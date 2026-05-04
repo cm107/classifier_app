@@ -19,6 +19,7 @@ from typing import Optional
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, QThread, QWaitCondition, Signal
 
 from vision_app.core.dataset import ClassificationDataset, ContrastiveTransformations, StandardTransformations
+from vision_app.core.logger import log
 from vision_app.core.model import ScratchResNet
 from vision_app.core.trainer import ModelTrainer, TrainingMetrics
 
@@ -195,30 +196,38 @@ class TrainWorker(QObject):
         phase = cfg.get("phase", "supervised")
 
         try:
+            log.info("TrainWorker", f"Starting training run (phase: {phase}, epochs: {cfg['epochs']})")
             self.signals.status_changed.emit(f"Initialising ({phase} phase)…")
 
             # --- Build DataLoaders on the worker thread ---
+            log.verbose("TrainWorker", f"Building data loaders from {cfg['dataset_path']}")
             train_loader, val_loader, label_map = self._build_loaders(cfg)
+            log.info("TrainWorker", f"DataLoaders ready (train: {len(train_loader)} batches, val: {len(val_loader)} batches)")
 
             # --- Build model and trainer ---
+            log.verbose("TrainWorker", f"Building ScratchResNet with {cfg['num_classes']} classes")
             model = ScratchResNet(
                 num_classes=cfg["num_classes"],
                 projection_dim=cfg.get("projection_dim", 128),
             )
             model.use_projection_head = (phase == "ssl")
-
             trainer = ModelTrainer(model=model)
+            log.info("TrainWorker", "Model and trainer initialized")
 
             # Optionally resume from checkpoint
             if cfg.get("model_path"):
+                log.info("TrainWorker", f"Loading checkpoint from {cfg['model_path']}")
                 self.signals.status_changed.emit("Loading checkpoint…")
                 trainer.state_manager.load_checkpoint(Path(cfg["model_path"]))
+                log.info("TrainWorker", "Checkpoint loaded successfully")
 
             # Freeze backbone for linear probe
             if phase == "linear_probe":
+                log.verbose("TrainWorker", "Freezing backbone for linear probe phase")
                 trainer.state_manager.freeze_backbone(freeze=True)
 
             # --- Configure optimiser + scheduler ---
+            log.verbose("TrainWorker", f"Configuring optimizer (lr: {cfg.get('learning_rate', 1e-3)}, weight_decay: {cfg.get('weight_decay', 1e-2)})")
             optimizer = trainer.optimization_engine.configure_optimizer(
                 lr=cfg.get("learning_rate", 1e-3),
                 weight_decay=cfg.get("weight_decay", 1e-2),
@@ -229,14 +238,17 @@ class TrainWorker(QObject):
                 epochs=cfg["epochs"],
             )
             loss_fn = trainer.optimization_engine.get_loss_function(phase)
+            log.verbose("TrainWorker", f"Optimizer and scheduler configured, loss_fn: {phase}")
 
             # --- Training loop ---
             epochs = cfg["epochs"]
             for epoch in range(1, epochs + 1):
 
                 if self.lifecycle.should_abort:
+                    log.warning("TrainWorker", "Training abort requested before epoch start")
                     break
 
+                log.verbose("TrainWorker", f"Starting epoch {epoch}/{epochs}")
                 self.signals.status_changed.emit(f"Epoch {epoch}/{epochs}")
                 model.train()
 
@@ -245,11 +257,13 @@ class TrainWorker(QObject):
                 )
 
                 if self.lifecycle.should_abort:
+                    log.warning("TrainWorker", "Training abort requested during epoch")
                     break
 
                 # Validation (skip for SSL — no class labels)
                 val_metrics = {}
                 if phase != "ssl":
+                    log.verbose("TrainWorker", f"Running validation for epoch {epoch}")
                     model.use_projection_head = False
                     val_metrics = trainer.validation_engine.run_evaluation(
                         val_loader, loss_fn=loss_fn
@@ -266,11 +280,13 @@ class TrainWorker(QObject):
                     phase=phase,
                     extra={"confusion_matrix": val_metrics.get("confusion_matrix", [])},
                 )
+                log.verbose("TrainWorker", f"Epoch {epoch} metrics: loss={epoch_loss:.4f}, val_acc={val_metrics.get('val_accuracy', 0.0):.4f}")
                 self.signals.progress_updated.emit(metrics)
 
                 # Save a checkpoint each epoch
                 ckpt_dir = Path(cfg.get("storage_root", "storage")) / "models"
                 ckpt_path = ckpt_dir / f"checkpoint_epoch{epoch:04d}.pth"
+                log.verbose("TrainWorker", f"Saving checkpoint to {ckpt_path}")
                 trainer.state_manager.save_checkpoint(
                     ckpt_path, epoch=epoch,
                     optimizer_state=optimizer.state_dict(),
@@ -283,18 +299,21 @@ class TrainWorker(QObject):
 
             success = not self.lifecycle.should_abort
             msg = "Training complete." if success else "Training aborted."
+            log.info("TrainWorker", msg)
             self.signals.status_changed.emit(msg)
             self.signals.finished.emit(success)
 
         except RuntimeError as exc:
             # Catches CUDA OOM and similar recoverable errors
             err = str(exc)
+            log.warning("TrainWorker", f"RuntimeError during training: {err}")
             self.signals.error_occurred.emit(f"RuntimeError: {err}")
             self.signals.status_changed.emit(f"Error: {err}")
             self.signals.finished.emit(False)
 
         except Exception as exc:  # noqa: BLE001
             err = str(exc)
+            log.exception("TrainWorker", f"Unexpected exception during training: {err}")
             self.signals.error_occurred.emit(f"Unexpected error: {err}")
             self.signals.status_changed.emit(f"Fatal: {err}")
             self.signals.finished.emit(False)

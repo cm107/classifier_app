@@ -24,6 +24,8 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
 
+from vision_app.core.logger import log
+
 
 # ---------------------------------------------------------------------------
 # NTXentLoss
@@ -135,6 +137,7 @@ class StateManager:
             payload["meta"] = extra_meta
 
         torch.save(payload, str(path))
+        log.info("StateManager", f"Checkpoint saved: {path.name}, epoch={epoch}")
 
     def load_checkpoint(self, path: Path, strict: bool = True) -> dict:
         """
@@ -164,6 +167,7 @@ class StateManager:
                 checkpoint["model_state_dict"], strict=strict
             )
 
+        log.info("StateManager", f"Checkpoint loaded: {path.name}, epoch={checkpoint.get('epoch', 'unknown')}")
         return checkpoint
 
     def freeze_backbone(self, freeze: bool = True):

@@ -21,6 +21,8 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, QThread, Signal
 from PySide6.QtGui import QImage
 from torchvision import transforms
 
+from vision_app.core.logger import log
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -111,24 +113,31 @@ class StreamWorker(QObject):
         with QMutexLocker(self._mutex):
             source = self._source
 
+        log.info("StreamWorker", f"Starting stream from source: {source}")
         cap = cv2.VideoCapture(source)
         if not cap.isOpened():
-            self.status_changed.emit(f"Failed to open source: {source}")
+            err_msg = f"Failed to open source: {source}"
+            log.error("StreamWorker", err_msg)
+            self.status_changed.emit(err_msg)
             self.finished.emit()
             return
 
+        log.info("StreamWorker", "Stream opened successfully, entering capture loop")
         self.status_changed.emit("Stream started.")
         self._model.eval()
 
+        frame_count = 0
         while True:
             with QMutexLocker(self._mutex):
                 if self._abort:
+                    log.verbose("StreamWorker", "Stream abort requested")
                     break
 
             loop_start_ms = QThread.currentThread().property("_loop_start")
 
             ret, frame_bgr = cap.read()
             if not ret:
+                log.info("StreamWorker", f"End of stream after {frame_count} frames")
                 self.status_changed.emit("End of stream.")
                 break
 
@@ -146,10 +155,13 @@ class StreamWorker(QObject):
             results = self._infer(frame_rgb)
             self.results_ready.emit(results)
 
+            frame_count += 1
+
             # --- FPS cap ---
             QThread.msleep(_MS_PER_FRAME)
 
         cap.release()
+        log.info("StreamWorker", f"Stream stopped after {frame_count} frames")
         self.status_changed.emit("Stream stopped.")
         self.finished.emit()
 
@@ -181,5 +193,6 @@ class StreamWorker(QObject):
                 (self._label_map.get(idx.item(), str(idx.item())), prob.item())
                 for idx, prob in zip(top_indices, top_probs)
             ]
-        except Exception:  # noqa: BLE001
+        except Exception as e:
+            log.exception("StreamWorker", f"Inference failed on frame: {e}")
             return []

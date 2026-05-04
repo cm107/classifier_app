@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 from vision_app.core.utils import ModelExporter
+from vision_app.core.logger import log
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +280,7 @@ class ModelManagerWidget(QWidget):
             self._status_label.setText("Only .pth checkpoints can be loaded for fine-tuning.")
             return
         self.model_selected.emit(path)
+        log.info("ModelManagerWidget", f"Model loaded for fine-tuning: {path.name}")
         self._status_label.setText(f"Loaded: {path.name}")
 
     def _on_export(self):
@@ -309,6 +311,7 @@ class ModelManagerWidget(QWidget):
             self._status_label.setText(f"Exported → {output_path.name}")
             self.refresh()
         except Exception as exc:
+            log.exception("ModelManagerWidget", f"Failed to export model {path.name}: {exc}")
             self._status_label.setText(f"Export failed: {exc}")
 
     def _on_delete(self):
@@ -329,7 +332,9 @@ class ModelManagerWidget(QWidget):
 
         try:
             path.unlink()
+            log.info("ModelManagerWidget", f"Model deleted: {path.name}")
             self._status_label.setText(f"Deleted: {path.name}")
             self.refresh()
         except OSError as exc:
+            log.exception("ModelManagerWidget", f"Failed to delete model {path.name}: {exc}")
             self._status_label.setText(f"Delete failed: {exc}")

@@ -13,6 +13,8 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
+from vision_app.core.logger import log
+
 
 # ---------------------------------------------------------------------------
 # StatsCalculator
@@ -130,6 +132,7 @@ class ModelExporter:
             traced = torch.jit.trace(model, dummy)
 
         traced.save(str(output_path))
+        log.info("ModelExporter", f"Exported TorchScript: {output_path.name}")
         return output_path
 
     def export_onnx(
@@ -166,6 +169,7 @@ class ModelExporter:
                 "logits": {0: "batch_size"},
             },
         )
+        log.info("ModelExporter", f"Exported ONNX: {output_path.name}")
         return output_path
 
 
@@ -206,7 +210,9 @@ class ConfigLoader:
                 "Ensure config.yaml exists in the project root."
             )
         with self.config_path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+            config = yaml.safe_load(f) or {}
+        log.info("ConfigLoader", f"Config loaded: {self.config_path.name}")
+        return config
 
     def save(self, config: dict):
         """Persist a modified config dict back to config.yaml."""
@@ -215,6 +221,7 @@ class ConfigLoader:
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         with self.config_path.open("w", encoding="utf-8") as f:
             yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+        log.info("ConfigLoader", f"Config saved: {self.config_path.name}")
 
     def get(self, *keys, default=None):
         """

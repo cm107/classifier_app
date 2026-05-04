@@ -14,6 +14,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
+from vision_app.core.logger import initialize_logger
+from vision_app.core.utils import ConfigLoader
 from vision_app.ui.main_window import MainWindow
 
 # ---------------------------------------------------------------------------
@@ -29,6 +31,14 @@ def _ensure_storage_dirs():
 
 def main():
     _ensure_storage_dirs()
+
+    # Initialize logger with storage/logs directory
+    log_dir = STORAGE_ROOT / "logs"
+    config = ConfigLoader()
+    verbose_mode = config.get("verbose_logging", False)
+    initialize_logger(log_dir=log_dir, verbose_mode=verbose_mode)
+    from vision_app.core.logger import log
+    log.info("main", "Vision App started")
 
     # High-DPI support
     QApplication.setHighDpiScaleFactorRoundingPolicy(

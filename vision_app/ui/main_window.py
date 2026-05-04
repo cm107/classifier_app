@@ -31,6 +31,8 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
 
+from vision_app.core.logger import log
+
 
 # ---------------------------------------------------------------------------
 # NavigationController
@@ -68,10 +70,15 @@ class NavigationController:
         self.stack = QStackedWidget()
 
         # Connect selection → page switch
-        self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
+        self.sidebar.currentRowChanged.connect(self._on_page_changed)
 
         # Default to first page
         self.sidebar.setCurrentRow(0)
+
+    def _on_page_changed(self, index: int):
+        page_name = self._NAV_ITEMS[index][0] if index < len(self._NAV_ITEMS) else f"Page {index}"
+        log.info("NavigationController", f"Switched to page: {page_name}")
+        self.stack.setCurrentIndex(index)
 
     def add_page(self, widget: QWidget):
         """Append a page to the stack. Call in the same order as _NAV_ITEMS."""
@@ -266,6 +273,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent):
         """Abort any running workers before the window is destroyed."""
+        log.info("MainWindow", "Application closing - aborting workers")
         # Stop training worker
         if hasattr(self, "monitor_widget"):
             worker = getattr(self.monitor_widget, "_worker", None)

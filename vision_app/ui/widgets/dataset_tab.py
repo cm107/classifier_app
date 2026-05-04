@@ -32,6 +32,8 @@ from PySide6.QtWidgets import (
 
 from vision_app.core.data_manager import DatasetBuilder
 
+from vision_app.core.logger import log
+
 
 # ---------------------------------------------------------------------------
 # PruningWorker — runs prune_dataset off the GUI thread
@@ -279,6 +281,7 @@ class DatasetManagerWidget(QWidget):
         self._builder.metadata_manager.generate_metadata(
             self._storage_root / "datasets" / name
         )
+        log.info("DatasetManagerWidget", f"New dataset created: {name}, classes={classes}")
         self._status.setText(f"Created dataset '{name}' with {len(classes)} classes.")
         self.datasets_changed.emit()
 
@@ -313,6 +316,7 @@ class DatasetManagerWidget(QWidget):
                 count += 1
 
         self._builder.metadata_manager.update_stats(ds_path)
+        log.info("DatasetManagerWidget", f"Imported images: dataset={ds_path.name}, class={class_name}, count={count}")
         self._status.setText(f"Imported {count} image(s) → {ds_path.name}/train/{class_name}")
         self.datasets_changed.emit()
 
@@ -353,6 +357,7 @@ class DatasetManagerWidget(QWidget):
             raw_path, ratios=tuple(parts)
         )
         self._builder.metadata_manager.update_stats(ds_path)
+        log.info("DatasetManagerWidget", f"Dataset split: {ds_path.name}, ratios={parts}")
         self._status.setText(
             f"Split '{ds_path.name}' → "
             f"{int(parts[0]*100)}/{int(parts[1]*100)}/{int(parts[2]*100)}"
@@ -369,6 +374,7 @@ class DatasetManagerWidget(QWidget):
         dlg = PruningDialog(self._builder, ds_path, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._builder.metadata_manager.update_stats(ds_path)
+            log.info("DatasetManagerWidget", f"Dataset pruned: {ds_path.name}")
             self._status.setText(f"Pruning complete for '{ds_path.name}'.")
             self.datasets_changed.emit()
 

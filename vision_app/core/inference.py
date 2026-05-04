@@ -13,6 +13,7 @@ from typing import Optional
 import torch
 import torch.nn.functional as F
 
+from vision_app.core.logger import log
 from vision_app.core.model import ScratchResNet
 
 
@@ -127,4 +128,5 @@ class InferenceEngine:
         model.to(self._device)
         model.eval()
 
+        log.info("InferenceEngine", f"Model loaded: {checkpoint_path.name}, classes={num_classes}, device={self._device}")
         return model, label_map

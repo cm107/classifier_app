@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from vision_app.worker.stream_worker import StreamWorker
+from vision_app.core.logger import log
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +346,7 @@ class RecordingManager:
         )
         self._recording = True
         self._rec_btn.setText("■  Stop")
+        log.info("RecordingManager", f"Recording started: {self._out_path.name}")
         self._status_lbl.setText(self._out_path.name)
 
     def _stop_recording(self):
@@ -353,6 +355,7 @@ class RecordingManager:
             self._writer = None
         self._recording = False
         self._rec_btn.setText("● Record")
+        log.info("RecordingManager", f"Recording stopped: {self._out_path.name if self._out_path else 'none'}")
         self._status_lbl.setText(
             f"Saved: {self._out_path.name}" if self._out_path else ""
         )
@@ -520,6 +523,7 @@ class InferenceViewWidget(QWidget):
 
         self._stream_thread.start()
         self.source_ctrl.set_playing(True)
+        log.info("InferenceViewWidget", f"Live inference started: model={model_path.name if model_path else 'none'}")
         self._status_label.setText("Stream starting…")
 
     def _do_stop(self):
@@ -527,6 +531,7 @@ class InferenceViewWidget(QWidget):
             self._stream_worker.stop()
         self.recorder.stop()
         self.source_ctrl.set_playing(False)
+        log.info("InferenceViewWidget", "Live inference stopped by user")
         self._status_label.setText("Stopping…")
 
     def _on_stream_finished(self):

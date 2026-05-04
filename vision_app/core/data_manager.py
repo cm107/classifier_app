@@ -18,6 +18,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from vision_app.core.logger import log
+
 
 # ---------------------------------------------------------------------------
 # Constants shared across submodules
@@ -39,29 +41,40 @@ class FileSystemHandler:
         Create <datasets_root>/<name>/{train,val,test}/<class>/ directories.
         Returns the dataset root path.
         """
-        dataset_path = self._parent.datasets_root / name
-        for split in ("train", "val", "test"):
-            for cls in classes:
-                (dataset_path / split / cls).mkdir(parents=True, exist_ok=True)
-        return dataset_path
+        try:
+            dataset_path = self._parent.datasets_root / name
+            log.verbose("FileSystemHandler", f"Creating dataset structure: {dataset_path}")
+            for split in ("train", "val", "test"):
+                for cls in classes:
+                    (dataset_path / split / cls).mkdir(parents=True, exist_ok=True)
+            log.info("FileSystemHandler", f"Dataset structure created: {name} with {len(classes)} classes")
+            return dataset_path
+        except Exception as e:
+            log.exception("FileSystemHandler", f"Failed to create dataset structure: {e}")
+            raise
 
     def move_sample(self, src_path: Path, dest_folder: Path) -> Path:
         """
         Move a single image file into dest_folder, avoiding filename collisions
         by appending _1, _2, … to the stem if needed.
         """
-        src_path = Path(src_path)
-        dest_folder = Path(dest_folder)
-        dest_folder.mkdir(parents=True, exist_ok=True)
+        try:
+            src_path = Path(src_path)
+            dest_folder = Path(dest_folder)
+            dest_folder.mkdir(parents=True, exist_ok=True)
 
-        dest_path = dest_folder / src_path.name
-        counter = 1
-        while dest_path.exists():
-            dest_path = dest_folder / f"{src_path.stem}_{counter}{src_path.suffix}"
-            counter += 1
+            dest_path = dest_folder / src_path.name
+            counter = 1
+            while dest_path.exists():
+                dest_path = dest_folder / f"{src_path.stem}_{counter}{src_path.suffix}"
+                counter += 1
 
-        shutil.move(str(src_path), str(dest_path))
-        return dest_path
+            log.verbose("FileSystemHandler", f"Moving {src_path.name} to {dest_path}")
+            shutil.move(str(src_path), str(dest_path))
+            return dest_path
+        except Exception as e:
+            log.exception("FileSystemHandler", f"Failed to move sample from {src_path} to {dest_folder}: {e}")
+            raise
 
     def get_class_distribution(self, root_path: Path) -> dict:
         """
@@ -113,30 +126,50 @@ class MetadataManager:
         Includes: name, created_at, num_classes, classes, total_images,
         and per-split distribution.
         """
-        dataset_path = Path(dataset_path)
-        metadata = self._build_stats(dataset_path)
-        self._write(dataset_path, metadata)
-        return metadata
+        try:
+            dataset_path = Path(dataset_path)
+            log.verbose("MetadataManager", f"Generating metadata for {dataset_path.name}")
+            metadata = self._build_stats(dataset_path)
+            self._write(dataset_path, metadata)
+            log.info("MetadataManager", f"Metadata generated: {metadata['num_classes']} classes, {metadata['total_images']} total images")
+            return metadata
+        except Exception as e:
+            log.exception("MetadataManager", f"Failed to generate metadata for {dataset_path}: {e}")
+            raise
 
     def update_stats(self, dataset_path: Path) -> dict:
         """
         Refresh metadata.json stats while preserving the original created_at.
         """
-        dataset_path = Path(dataset_path)
-        existing = self.load_metadata(dataset_path)
+        try:
+            dataset_path = Path(dataset_path)
+            log.verbose("MetadataManager", f"Updating stats for {dataset_path.name}")
+            existing = self.load_metadata(dataset_path)
 
-        metadata = self._build_stats(dataset_path)
-        metadata["created_at"] = existing.get("created_at", metadata["created_at"])
-        self._write(dataset_path, metadata)
-        return metadata
+            metadata = self._build_stats(dataset_path)
+            metadata["created_at"] = existing.get("created_at", metadata["created_at"])
+            self._write(dataset_path, metadata)
+            log.info("MetadataManager", f"Stats updated: {metadata['num_classes']} classes, {metadata['total_images']} total images")
+            return metadata
+        except Exception as e:
+            log.exception("MetadataManager", f"Failed to update stats for {dataset_path}: {e}")
+            raise
 
     def load_metadata(self, dataset_path: Path) -> dict:
         """Read metadata.json and return as a dict (empty dict if missing)."""
-        meta_path = Path(dataset_path) / self._FILENAME
-        if not meta_path.exists():
+        try:
+            meta_path = Path(dataset_path) / self._FILENAME
+            if not meta_path.exists():
+                log.debug("MetadataManager", f"Metadata not found at {meta_path}")
+                return {}
+            log.verbose("MetadataManager", f"Loading metadata from {meta_path}")
+            with meta_path.open("r", encoding="utf-8") as f:
+                metadata = json.load(f)
+            log.debug("MetadataManager", f"Metadata loaded: {metadata.get('name', 'unknown')} dataset")
+            return metadata
+        except Exception as e:
+            log.exception("MetadataManager", f"Failed to load metadata from {dataset_path}: {e}")
             return {}
-        with meta_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
 
     def get_label_map(self, dataset_path: Path) -> dict:
         """
@@ -182,9 +215,15 @@ class MetadataManager:
         }
 
     def _write(self, dataset_path: Path, metadata: dict):
-        meta_path = dataset_path / self._FILENAME
-        with meta_path.open("w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=2)
+        try:
+            meta_path = dataset_path / self._FILENAME
+            log.verbose("MetadataManager", f"Writing metadata to {meta_path}")
+            with meta_path.open("w", encoding="utf-8") as f:
+                json.dump(metadata, f, indent=2)
+            log.debug("MetadataManager", f"Metadata written successfully")
+        except Exception as e:
+            log.exception("MetadataManager", f"Failed to write metadata to {dataset_path}: {e}")
+            raise
 
 
 # ---------------------------------------------------------------------------
@@ -207,40 +246,51 @@ class DatasetTransformer:
         The parent of raw_path is treated as the dataset root.
         Files are shuffled with a fixed seed (42) for reproducibility.
         """
-        raw_path = Path(raw_path)
-        dataset_path = raw_path.parent
+        try:
+            raw_path = Path(raw_path)
+            dataset_path = raw_path.parent
 
-        if abs(sum(ratios) - 1.0) > 1e-6:
-            raise ValueError(f"Ratios must sum to 1.0, got {sum(ratios):.4f}")
+            if abs(sum(ratios) - 1.0) > 1e-6:
+                raise ValueError(f"Ratios must sum to 1.0, got {sum(ratios):.4f}")
 
-        fsh = self._parent.file_system_handler
+            log.info("DatasetTransformer", f"Starting train/val/test split with ratios {ratios}")
+            fsh = self._parent.file_system_handler
 
-        for class_dir in sorted(raw_path.iterdir()):
-            if not class_dir.is_dir():
-                continue
-            class_name = class_dir.name
-            files = [
-                f for f in class_dir.iterdir()
-                if f.is_file() and f.suffix.lower() in _IMAGE_EXTENSIONS
-            ]
-            random.seed(42)
-            random.shuffle(files)
+            total_moved = 0
+            for class_dir in sorted(raw_path.iterdir()):
+                if not class_dir.is_dir():
+                    continue
+                class_name = class_dir.name
+                files = [
+                    f for f in class_dir.iterdir()
+                    if f.is_file() and f.suffix.lower() in _IMAGE_EXTENSIONS
+                ]
+                random.seed(42)
+                random.shuffle(files)
 
-            n = len(files)
-            n_train = int(n * ratios[0])
-            n_val = int(n * ratios[1])
+                n = len(files)
+                n_train = int(n * ratios[0])
+                n_val = int(n * ratios[1])
 
-            split_files = {
-                "train": files[:n_train],
-                "val": files[n_train: n_train + n_val],
-                "test": files[n_train + n_val:],
-            }
+                log.verbose("DatasetTransformer", f"Splitting {class_name}: {n_train} train, {n_val} val, {n - n_train - n_val} test")
 
-            for split, split_file_list in split_files.items():
-                dest_dir = dataset_path / split / class_name
-                dest_dir.mkdir(parents=True, exist_ok=True)
-                for f in split_file_list:
-                    fsh.move_sample(f, dest_dir)
+                split_files = {
+                    "train": files[:n_train],
+                    "val": files[n_train: n_train + n_val],
+                    "test": files[n_train + n_val:],
+                }
+
+                for split, split_file_list in split_files.items():
+                    dest_dir = dataset_path / split / class_name
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                    for f in split_file_list:
+                        fsh.move_sample(f, dest_dir)
+                        total_moved += 1
+
+            log.info("DatasetTransformer", f"Split complete: {total_moved} files organized into train/val/test")
+        except Exception as e:
+            log.exception("DatasetTransformer", f"Failed to split dataset: {e}")
+            raise
 
     def merge_datasets(self, source_paths: list, target_path: Path):
         """
@@ -344,15 +394,25 @@ class DatasetValidator:
         Walk the entire dataset tree and return a list of Paths that
         PIL cannot open/verify.
         """
-        corrupt = []
-        for img_path in sorted(Path(dataset_path).rglob("*")):
-            if img_path.is_file() and img_path.suffix.lower() in _IMAGE_EXTENSIONS:
-                try:
-                    with Image.open(img_path) as img:
-                        img.verify()
-                except Exception:
-                    corrupt.append(img_path)
-        return corrupt
+        try:
+            log.verbose("DatasetValidator", f"Scanning for corrupt files in {dataset_path}")
+            corrupt = []
+            for img_path in sorted(Path(dataset_path).rglob("*")):
+                if img_path.is_file() and img_path.suffix.lower() in _IMAGE_EXTENSIONS:
+                    try:
+                        with Image.open(img_path) as img:
+                            img.verify()
+                    except Exception as e:
+                        log.debug("DatasetValidator", f"Corrupt image detected: {img_path} ({e})")
+                        corrupt.append(img_path)
+            if corrupt:
+                log.warning("DatasetValidator", f"Found {len(corrupt)} corrupt files")
+            else:
+                log.info("DatasetValidator", "No corrupt files detected")
+            return corrupt
+        except Exception as e:
+            log.exception("DatasetValidator", f"Failed to scan for corrupt files: {e}")
+            raise
 
     def check_class_balance(self, dataset_path: Path, split: str = "train") -> dict:
         """
@@ -364,29 +424,40 @@ class DatasetValidator:
                 "warnings":     [str, ...]
             }
         """
-        fsh = self._parent.file_system_handler
-        distribution = fsh.get_class_distribution(Path(dataset_path) / split)
+        try:
+            log.verbose("DatasetValidator", f"Checking class balance for {split} split in {dataset_path}")
+            fsh = self._parent.file_system_handler
+            distribution = fsh.get_class_distribution(Path(dataset_path) / split)
 
-        if not distribution:
-            return {"distribution": {}, "warnings": ["No classes found."]}
+            if not distribution:
+                log.warning("DatasetValidator", "No classes found in dataset")
+                return {"distribution": {}, "warnings": ["No classes found."]}
 
-        counts = list(distribution.values())
-        max_count = max(counts)
-        min_count = min(counts)
-        warnings = []
+            counts = list(distribution.values())
+            max_count = max(counts)
+            min_count = min(counts)
+            warnings = []
 
-        empty_classes = [k for k, v in distribution.items() if v == 0]
-        if empty_classes:
-            warnings.append(f"Empty classes detected: {empty_classes}")
+            empty_classes = [k for k, v in distribution.items() if v == 0]
+            if empty_classes:
+                msg = f"Empty classes detected: {empty_classes}"
+                log.warning("DatasetValidator", msg)
+                warnings.append(msg)
 
-        if min_count > 0 and (max_count / min_count) > 5:
-            warnings.append(
-                f"Severe class imbalance detected "
-                f"(max={max_count}, min={min_count}). "
-                "Consider collecting more samples for under-represented classes."
-            )
+            if min_count > 0 and (max_count / min_count) > 5:
+                msg = (
+                    f"Severe class imbalance detected "
+                    f"(max={max_count}, min={min_count}). "
+                    "Consider collecting more samples for under-represented classes."
+                )
+                log.warning("DatasetValidator", msg)
+                warnings.append(msg)
 
-        return {"distribution": distribution, "warnings": warnings}
+            log.info("DatasetValidator", f"Class balance check: {len(distribution)} classes, balance ratio {max_count/min_count if min_count > 0 else 'N/A':.2f}")
+            return {"distribution": distribution, "warnings": warnings}
+        except Exception as e:
+            log.exception("DatasetValidator", f"Failed to check class balance: {e}")
+            raise
 
 
 # ---------------------------------------------------------------------------
